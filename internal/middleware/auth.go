@@ -2,41 +2,50 @@ package middleware
 
 import (
 	"fmt"
-	"godance/config"
-	"godance/internal/models"
 	"net/http"
 	"os"
-	"time"
+	"slices"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 )
 
 func RequireAuth(c *gin.Context) {
-	fmt.Println("In middle")
-	tokenString, err := c.Cookie("Authorization")
+	header := c.GetHeader("Authorization")
 
-	if err != nil {
+	if !strings.HasPrefix(header, "Bearer ") {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
+
+	tokenString := strings.TrimPrefix(header, "Bearer ")
 
 	token, err := jwt.Parse(tokenString, func(token *jwt.Token) (any, error) {
 		return []byte(os.Getenv("JWT_SECRET")), nil
 	}, jwt.WithValidMethods([]string{jwt.SigningMethodHS256.Alg()}))
 	if err != nil {
 		c.AbortWithStatus(http.StatusUnauthorized)
+		return
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-		if float64(time.Now().Unix()) > claims["exp"].(float64) {
-			c.AbortWithStatus(http.StatusUnauthorized)
-		}
-		var user models.User
-		config.DB.First(&user, claims["sub"])
 
-		c.Set("user", user)
+		c.Set("userID", claims["sub"])
+		c.Set("role", claims["role"])
 		c.Next()
 	} else {
 		fmt.Println(err)
+	}
+}
+
+func RequireRole(roles ...string) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		role := c.MustGet("role").(string)
+		if slices.Contains(roles, role) {
+			c.Next()
+			return
+		}
+		c.AbortWithStatus(http.StatusForbidden)
 	}
 }
