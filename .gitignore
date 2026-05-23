@@ -1,20 +1,33 @@
-# Binary
-/godance
+# If you prefer the allow list template instead of the deny list, see community template:
+# https://github.com/github/gitignore/blob/main/community/Golang/Go.AllowList.gitignore
+#
+# Binaries for programs and plugins
 *.exe
+*.exe~
+*.dll
+*.so
+*.dylib
 
-# Go
+# Test binary, built with `go test -c`
 *.test
+
+# Code coverage profiles and other test artifacts
 *.out
-vendor/
+coverage.*
+*.coverprofile
+profile.cov
 
-# Env
+# Dependency directories (remove the comment below to include it)
+# vendor/
+
+# Go workspace file
+go.work
+go.work.sum
+
+# env file
 .env
-*.env
 
-# IDE
-.idea/
-.vscode/
-
-# OS
-.DS_Store
+# Editor/IDE
+# .idea/
+# .vscode/docker-compose.yml
 docker-compose.yml
