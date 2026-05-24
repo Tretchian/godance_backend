@@ -1,9 +1,9 @@
 package auth
 
 import (
+	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/models"
-	"godance/internal/repository/user"
 	types "godance/internal/type"
 	"os"
 	"time"
@@ -13,10 +13,10 @@ import (
 )
 
 type Service struct {
-	repo *user.Repository
+	repo domain.UserRepository
 }
 
-func NewService(repo *user.Repository) *Service {
+func NewService(repo domain.UserRepository) *Service {
 	return &Service{repo: repo}
 }
 

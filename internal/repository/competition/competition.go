@@ -1,24 +1,25 @@
 package competition
 
 import (
+	"godance/internal/domain"
 	"godance/internal/models"
 
 	"gorm.io/gorm"
 )
 
-type Repository struct {
+type repository struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *gorm.DB) domain.CompetitionRepository {
+	return &repository{db: db}
 }
 
-func (r *Repository) Create(c *models.Competition) error {
+func (r *repository) Create(c *models.Competition) error {
 	return r.db.Create(c).Error
 }
 
-func (r *Repository) FindPage(status string, page int, limit int) ([]models.Competition, int64, error) {
+func (r *repository) FindPage(status string, page int, limit int) ([]models.Competition, int64, error) {
 	var competitions []models.Competition
 	var total int64
 

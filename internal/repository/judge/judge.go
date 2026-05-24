@@ -1,11 +1,15 @@
 package judge
 
-import "gorm.io/gorm"
+import (
+	"godance/internal/domain"
 
-type Repository struct {
+	"gorm.io/gorm"
+)
+
+type repository struct {
 	db *gorm.DB
 }
 
-func NewRepository(db *gorm.DB) *Repository {
-	return &Repository{db: db}
+func NewRepository(db *gorm.DB) domain.JudgeRepository {
+	return &repository{db: db}
 }
