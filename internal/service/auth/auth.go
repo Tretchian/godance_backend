@@ -45,7 +45,7 @@ func (s *Service) CreateUser(req dto.RegistrationRequest) (*dto.AuthResponse, er
 		return nil, err
 	}
 
-	access, refresh, err := generateTokenPair(newUser.ID, os.Getenv("JWT_SECRET"))
+	access, refresh, err := generateTokenPair(newUser.ID, newUser.Role, os.Getenv("JWT_SECRET"))
 
 	return toAuthResponse(access, refresh, *toUserShort(newUser)), nil
 }
@@ -61,7 +61,7 @@ func (s *Service) Login(req dto.LoginRequest) (*dto.AuthResponse, error) {
 		return nil, err
 	}
 
-	access, refresh, err := generateTokenPair(foundUser.ID, os.Getenv("JWT_SECRET"))
+	access, refresh, err := generateTokenPair(foundUser.ID, foundUser.Role, os.Getenv("JWT_SECRET"))
 
 	return toAuthResponse(access, refresh, *toUserShort(*foundUser)), nil
 }
@@ -83,9 +83,10 @@ func toUserShort(user models.User) *dto.UserShort {
 	}
 }
 
-func generateTokenPair(userID uint, secret string) (access string, refresh string, err error) {
+func generateTokenPair(userID uint, role string, secret string) (access string, refresh string, err error) {
 	accessToken := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
 		"sub":  userID,
+		"role": role,
 		"type": "access",
 		"exp":  time.Now().Add(time.Hour).Unix(),
 	})
