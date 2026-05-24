@@ -1,7 +1,6 @@
 package middleware
 
 import (
-	"fmt"
 	"net/http"
 	"os"
 	"slices"
@@ -35,7 +34,7 @@ func RequireAuth(c *gin.Context) {
 		c.Set("role", claims["role"])
 		c.Next()
 	} else {
-		fmt.Println(err)
+		c.AbortWithStatus(http.StatusUnauthorized)
 	}
 }
 
