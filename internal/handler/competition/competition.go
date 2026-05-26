@@ -2,8 +2,10 @@ package competition
 
 import (
 	"godance/internal/dto"
+	"godance/internal/middleware"
 	"godance/internal/models"
 	"godance/internal/service/competition"
+	types "godance/internal/type"
 	"net/http"
 	"strconv"
 
@@ -23,9 +25,21 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	competitions := rg.Group("/competitions")
 	{
 		competitions.GET("/", h.GetList)
-		competitions.GET("/:id/summary", h.GetCompetition)
-		competitions.POST("", h.CreateCompetition)
-		competitions.PATCH("/:id", h.PatchCompetition)
+		competitions.GET(
+			"/:id/summary",
+			middleware.RequireRole(string(types.UserRoleOrganizer)),
+			h.GetCompetition,
+		)
+		competitions.POST(
+			"",
+			middleware.RequireRole(string(types.UserRoleOrganizer)),
+			h.CreateCompetition,
+		)
+		competitions.PATCH(
+			"/:id",
+			middleware.RequireRole(string(types.UserRoleOrganizer)),
+			h.PatchCompetition,
+		)
 	}
 }
 
@@ -37,7 +51,7 @@ func (h *Handler) CreateCompetition(c *gin.Context) {
 	result, err := h.service.CreateCompetition(user, req)
 
 	if err != nil {
-		c.JSON(http.StatusNotImplemented, result)
+		c.JSON(http.StatusInternalServerError, err)
 	}
 	c.JSON(http.StatusOK, result)
 }
@@ -56,8 +70,10 @@ func (h *Handler) PatchCompetition(c *gin.Context) {
 	}
 	c.JSON(http.StatusOK, result)
 }
+
 func (h *Handler) GetCompetition(c *gin.Context) {
 }
+
 func (h *Handler) GetList(c *gin.Context) {
 	status := c.Query("status")
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
