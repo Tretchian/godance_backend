@@ -1,11 +1,13 @@
 package feedback
 
-import "godance/internal/repository/feedback"
+import (
+	"godance/internal/domain"
+)
 
 type Service struct {
-	repo *feedback.Repository
+	repo domain.FeedbackRepository
 }
 
-func NewService(repo *feedback.Repository) *Service {
+func NewService(repo domain.FeedbackRepository) *Service {
 	return &Service{repo: repo}
 }

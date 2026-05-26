@@ -1,13 +1,13 @@
 package user
 
 import (
-	"godance/internal/repository/user"
+	"godance/internal/domain"
 )
 
 type Service struct {
-	repo *user.Repository
+	repo domain.UserRepository
 }
 
-func NewService(repo *user.Repository) *Service {
+func NewService(repo domain.UserRepository) *Service {
 	return &Service{repo: repo}
 }

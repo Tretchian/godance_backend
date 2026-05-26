@@ -1,18 +1,18 @@
 package competition
 
 import (
+	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/models"
-	"godance/internal/repository/competition"
 
 	"github.com/google/uuid"
 )
 
 type Service struct {
-	repo *competition.Repository
+	repo domain.CompetitionRepository
 }
 
-func NewService(repo *competition.Repository) *Service {
+func NewService(repo domain.CompetitionRepository) *Service {
 	return &Service{repo: repo}
 }
 
