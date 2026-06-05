@@ -20,12 +20,11 @@ func (s *Service) CreateCompetition(user models.User, req dto.CreateCompetitionR
 	competition := models.Competition{
 		OrganizerID: user.ID,
 		Title:       req.Title,
-		EventDate:   req.Event_date,
+		EventDate:   req.EventDate,
 		Status:      "draft",
 	}
 
 	err := s.repo.Create(&competition)
-
 	if err != nil {
 		return nil, err
 	}
@@ -39,7 +38,6 @@ func (s *Service) PatchCompetition(id uuid.UUID, req dto.UpdateCompetitionReques
 
 func (s *Service) GetPage(status string, page int, limit int) (*dto.CompetitionListResponse, error) {
 	competitions, total, err := s.repo.FindPage(status, page, limit)
-
 	if err != nil {
 		return nil, err
 	}

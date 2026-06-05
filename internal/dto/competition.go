@@ -1,15 +1,16 @@
 package dto
 
 import (
-	types "godance/internal/type"
 	"time"
+
+	types "godance/internal/type"
 
 	"github.com/shopspring/decimal"
 )
 
 type CreateCompetitionRequest struct {
 	Title            string          `json:"title" binding:"required"`
-	Event_date       time.Time       `json:"date" binding:"required"`
+	EventDate        time.Time       `json:"date" binding:"required"`
 	ParticipantLimit uint            `json:"participant_limit" binding:"required,min=0"`
 	EntryFee         decimal.Decimal `json:"entry_fee" binding:"required,min=0"`
 }
@@ -33,4 +34,15 @@ type CompetitionItem struct {
 type CompetitionListResponse struct {
 	Data       []CompetitionItem `json:"data"`
 	Pagination Pagination        `json:"pagination"`
+}
+
+type CompetitionSummary struct {
+	CompetiitonID       uint               `json:"competition_id"`
+	TotalRequests       uint               `json:"total_requests"`
+	Completed           uint               `json:"completed"`
+	Pending             uint               `json:"pending"`
+	Refunded            uint               `json:"refunded"`
+	TotalCapturedAmount decimal.Decimal    `json:"total_captured_amount"`
+	OrganizerShare      decimal.Decimal    `json:"organizer_share"`
+	PayoutStatus        types.PayoutStatus `json:"payout_status"`
 }
