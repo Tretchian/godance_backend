@@ -23,6 +23,8 @@ func NewDB() (*gorm.DB, error) {
 		os.Getenv("DB_PORT"),
 		os.Getenv("DB_SSLMODE"),
 	)
-	DB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{})
+	DB, err := gorm.Open(postgres.Open(dsn), &gorm.Config{
+		TranslateError: true,
+	})
 	return DB, err
 }
