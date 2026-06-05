@@ -4,8 +4,6 @@ import (
 	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/models"
-
-	"github.com/google/uuid"
 )
 
 type Service struct {
@@ -25,7 +23,6 @@ func (s *Service) CreateCompetition(user models.User, req dto.CreateCompetitionR
 	}
 
 	err := s.repo.Create(&competition)
-
 	if err != nil {
 		return nil, err
 	}
@@ -33,13 +30,12 @@ func (s *Service) CreateCompetition(user models.User, req dto.CreateCompetitionR
 	return toCompetitionItem(competition), nil
 }
 
-func (s *Service) PatchCompetition(id uuid.UUID, req dto.UpdateCompetitionRequest) (*dto.CompetitionItem, error) {
+func (s *Service) PatchCompetition(id uint64, req dto.UpdateCompetitionRequest) (*dto.CompetitionItem, error) {
 	return nil, nil
 }
 
 func (s *Service) GetPage(status string, page int, limit int) (*dto.CompetitionListResponse, error) {
 	competitions, total, err := s.repo.FindPage(status, page, limit)
-
 	if err != nil {
 		return nil, err
 	}

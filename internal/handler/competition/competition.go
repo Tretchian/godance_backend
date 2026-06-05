@@ -1,16 +1,16 @@
 package competition
 
 import (
+	"net/http"
+	"strconv"
+
 	"godance/internal/dto"
 	"godance/internal/middleware"
 	"godance/internal/models"
 	"godance/internal/service/competition"
 	types "godance/internal/type"
-	"net/http"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
-	"github.com/google/uuid"
 )
 
 type Handler struct {
@@ -49,7 +49,6 @@ func (h *Handler) CreateCompetition(c *gin.Context) {
 	c.ShouldBindJSON(&req)
 
 	result, err := h.service.CreateCompetition(user, req)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 	}
@@ -58,13 +57,12 @@ func (h *Handler) CreateCompetition(c *gin.Context) {
 
 func (h *Handler) PatchCompetition(c *gin.Context) {
 	idParam := c.Param("id")
-	id, err := uuid.Parse(idParam)
+	id, err := strconv.ParseUint(idParam, 10, 64)
 
 	var req dto.UpdateCompetitionRequest
 	c.ShouldBindJSON(&req)
 
 	result, err := h.service.PatchCompetition(id, req)
-
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 	}
