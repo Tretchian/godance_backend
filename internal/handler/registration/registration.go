@@ -5,8 +5,8 @@ import (
 )
 
 func RegisterRoutes(rg *gin.RouterGroup) {
-	users := rg.Group("/registrations")
+	registrations := rg.Group("/registrations")
 	{
-		users.GET("/")
+		registrations.GET("/")
 	}
 }
