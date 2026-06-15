@@ -14,9 +14,9 @@ func NewService(repo domain.CompetitionRepository) *Service {
 	return &Service{repo: repo}
 }
 
-func (s *Service) CreateCompetition(user models.User, req dto.CreateCompetitionRequest) (*dto.CompetitionItem, error) {
+func (s *Service) CreateCompetition(organizerID uint, req dto.CreateCompetitionRequest) (*dto.CompetitionItem, error) {
 	competition := models.Competition{
-		OrganizerID: user.ID,
+		OrganizerID: organizerID,
 		Title:       req.Title,
 		EventDate:   req.Event_date,
 		Status:      "draft",

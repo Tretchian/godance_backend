@@ -29,13 +29,28 @@ func RequireAuth(c *gin.Context) {
 	}
 
 	if claims, ok := token.Claims.(jwt.MapClaims); ok {
-
-		c.Set("userID", claims["sub"])
+		sub, ok := claims["sub"].(float64)
+		if !ok {
+			c.AbortWithStatus(http.StatusUnauthorized)
+			return
+		}
+		c.Set("userID", uint(sub))
 		c.Set("role", claims["role"])
 		c.Next()
 	} else {
 		c.AbortWithStatus(http.StatusUnauthorized)
 	}
+}
+
+// UserID возвращает ID аутентифицированного пользователя из контекста.
+// Работает только после middleware RequireAuth; иначе вернёт 0.
+func UserID(c *gin.Context) uint {
+	v, ok := c.Get("userID")
+	if !ok {
+		return 0
+	}
+	id, _ := v.(uint)
+	return id
 }
 
 func RequireRole(roles ...string) gin.HandlerFunc {

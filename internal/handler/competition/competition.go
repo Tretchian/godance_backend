@@ -6,7 +6,6 @@ import (
 
 	"godance/internal/dto"
 	"godance/internal/middleware"
-	"godance/internal/models"
 	"godance/internal/service/competition"
 	types "godance/internal/type"
 
@@ -27,16 +26,19 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 		competitions.GET("/", h.GetList)
 		competitions.GET(
 			"/:id/summary",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
 			h.GetCompetition,
 		)
 		competitions.POST(
 			"",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
 			h.CreateCompetition,
 		)
 		competitions.PATCH(
 			"/:id",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
 			h.PatchCompetition,
 		)
@@ -44,11 +46,11 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 }
 
 func (h *Handler) CreateCompetition(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
+	userID := middleware.UserID(c)
 	var req dto.CreateCompetitionRequest
 	c.ShouldBindJSON(&req)
 
-	result, err := h.service.CreateCompetition(user, req)
+	result, err := h.service.CreateCompetition(userID, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, err)
 	}

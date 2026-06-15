@@ -8,7 +8,6 @@ import (
 	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/middleware"
-	"godance/internal/models"
 	"godance/internal/service/judge"
 	types "godance/internal/type"
 
@@ -29,6 +28,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 		judges.GET("", h.GetList)
 		judges.POST(
 			"",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
 			h.Assign,
 		)
@@ -56,7 +56,7 @@ func (h *Handler) Assign(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid competition id"})
 		return
 	}
-	user := c.MustGet("user").(models.User)
+	userID := middleware.UserID(c)
 
 	var req dto.AssignJudgeRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -64,7 +64,7 @@ func (h *Handler) Assign(c *gin.Context) {
 		return
 	}
 
-	result, err := h.service.Assign(uint(id), req.JudgeID, user.ID)
+	result, err := h.service.Assign(uint(id), req.JudgeID, userID)
 	if err != nil {
 		status, msg := mapError(err)
 		c.JSON(status, gin.H{"error": msg})
