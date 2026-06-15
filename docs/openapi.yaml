@@ -1,0 +1,1341 @@
+openapi: 3.0.3
+info:
+  title: Dance Feedback Platform API
+  description: >
+    API платформы цифрового судейства танцевальных соревнований.
+    Поддерживает три роли: участник, судья, организатор.
+    Платежи реализованы через двухфазный hold/capture (escrow).
+  version: 1.0.2
+
+servers:
+  - url: https://api.yourplatform.com/v1
+    description: Production
+  - url: http://localhost:8080/v1
+    description: Local development
+
+tags:
+  - name: auth
+    description: Регистрация и аутентификация
+  - name: competitions
+    description: Соревнования
+  - name: registrations
+    description: Регистрация участников на соревнование
+  - name: feedback-requests
+    description: Запросы обратной связи
+  - name: feedback-responses
+    description: Ответы судей (обратная связь)
+  - name: feedback-ratings
+    description: Оценки обратной связи участниками
+  - name: videos
+    description: Загрузка и управление видео выступлений
+  - name: judges
+    description: Каталог судей
+  - name: payments
+    description: Платежи и выплаты
+
+# ---------------------------------------------------------------------------
+# PATHS
+# ---------------------------------------------------------------------------
+paths:
+
+  # ── AUTH ──────────────────────────────────────────────────────────────────
+
+  /auth/register:
+    post:
+      tags: [auth]
+      summary: Регистрация нового пользователя
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+      responses:
+        '201':
+          description: Пользователь создан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '409':
+          $ref: '#/components/responses/Conflict'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /auth/login:
+    post:
+      tags: [auth]
+      summary: Вход в систему
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+      responses:
+        '200':
+          description: Успешная аутентификация
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /auth/refresh:
+    post:
+      tags: [auth]
+      summary: Обновить access token
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [refresh_token]
+              properties:
+                refresh_token:
+                  type: string
+      responses:
+        '200':
+          description: Новый access token
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # ── COMPETITIONS ──────────────────────────────────────────────────────────
+
+  /competitions:
+    get:
+      tags: [competitions]
+      summary: Список соревнований
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, open, closed, finished]
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Список соревнований
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionList'
+
+
+    post:
+      tags: [competitions]
+      summary: Создать соревнование (только организатор)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateCompetitionRequest'
+      responses:
+        '201':
+          description: Соревнование создано
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Competition'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /competitions/{competition_id}:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+    get:
+      tags: [competitions]
+      summary: Получить соревнование
+      responses:
+        '200':
+          description: Данные соревнования
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Competition'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [competitions]
+      summary: Обновить соревнование (только организатор-владелец)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateCompetitionRequest'
+      responses:
+        '200':
+          description: Соревнование обновлено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Competition'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /competitions/{competition_id}/summary:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+    get:
+      tags: [competitions]
+      summary: Сводка по ОС соревнования (только организатор-владелец)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Агрегированная статистика по ОС и выплате
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/CompetitionSummary'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── REGISTRATIONS ─────────────────────────────────────────────────────────
+
+  /competitions/{competition_id}/registrations:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+    get:
+      tags: [registrations]
+      summary: Список участников соревнования (только организатор)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Список регистраций
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationList'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [registrations]
+      summary: Зарегистрироваться на соревнование (участник)
+      security:
+        - BearerAuth: []
+      responses:
+        '201':
+          description: Регистрация создана, редирект на оплату
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RegistrationCreated'
+        '400':
+          description: Регистрация закрыта или лимит достигнут
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '409':
+          description: Участник уже зарегистрирован
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /competitions/{competition_id}/judges:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+    get:
+      tags: [judges]
+      summary: Список судей соревнования
+      responses:
+        '200':
+          description: Судьи, назначенные на соревнование
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeList'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    post:
+      tags: [judges]
+      summary: Назначить судью на соревнование (только организатор-владелец)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/AssignJudgeRequest'
+      responses:
+        '201':
+          description: Судья назначен
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeAssignment'
+        '400':
+          description: Достигнут лимит судей (5) или соревнование не в статусе draft/open
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Судья уже назначен на это соревнование
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /competitions/{competition_id}/judges/{judge_id}:
+    parameters:
+      - $ref: '#/components/parameters/CompetitionId'
+      - $ref: '#/components/parameters/JudgeId'
+    delete:
+      tags: [judges]
+      summary: Снять судью с соревнования (только организатор-владелец)
+      security:
+        - BearerAuth: []
+      responses:
+        '204':
+          description: Судья снят с соревнования
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: По судье уже есть запросы ОС, снятие запрещено
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+  /payments/webhooks/registration:
+    post:
+      tags: [payments]
+      summary: Webhook подтверждения оплаты взноса (платёжный шлюз → backend)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentWebhook'
+      responses:
+        '200':
+          description: Webhook обработан
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── JUDGES ────────────────────────────────────────────────────────────────
+
+  /judges:
+    get:
+      tags: [judges]
+      summary: Каталог судей
+      parameters:
+        - $ref: '#/components/parameters/Page'
+        - $ref: '#/components/parameters/Limit'
+      responses:
+        '200':
+          description: Список судей с рейтингами
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeList'
+
+  /judges/{judge_id}:
+    parameters:
+      - $ref: '#/components/parameters/JudgeId'
+    get:
+      tags: [judges]
+      summary: Профиль судьи
+      responses:
+        '200':
+          description: Профиль судьи
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/JudgeProfile'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── FEEDBACK REQUESTS ─────────────────────────────────────────────────────
+
+  /feedback/requests:
+    post:
+      tags: [feedback-requests]
+      summary: Создать запрос ОС и инициировать hold оплаты
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedbackRequest'
+      responses:
+        '201':
+          description: Запрос создан, редирект на оплату (hold)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackRequestCreated'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'       
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /feedback/requests/{request_id}:
+    parameters:
+      - $ref: '#/components/parameters/RequestId'
+    get:
+      tags: [feedback-requests]
+      summary: Получить запрос ОС (участник или судья-исполнитель)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Данные запроса
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+    patch:
+      tags: [feedback-requests]
+      summary: Действие над запросом ОС (подтверждение участником)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FeedbackRequestAction'
+      responses:
+        '200':
+          description: Статус запроса обновлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackRequest'
+        '400':
+          $ref: '#/components/responses/BadRequest'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /payments/webhooks/feedback:
+    post:
+      tags: [payments]
+      summary: Webhook hold/capture/release по запросу ОС (шлюз → backend)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentWebhook'
+      responses:
+        '200':
+          description: Webhook обработан
+        '400':
+          $ref: '#/components/responses/BadRequest'
+
+  # ── VIDEOS ────────────────────────────────────────────────────────────────
+
+  /videos/upload-url:
+    post:
+      tags: [videos]
+      summary: Получить presigned PUT URL для загрузки видео
+      description: >
+        Доступно только если feedback_request.status = awaiting_video.
+        Клиент загружает файл напрямую в OS минуя backend.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: presigned URL выдан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          description: Запрос не в статусе awaiting_video
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+  /videos/{video_id}/confirm:
+    parameters:
+      - $ref: '#/components/parameters/VideoId'
+    post:
+      tags: [videos]
+      summary: Подтвердить успешную загрузку файла в хранилище
+      description: >
+        Backend проверяет наличие объекта в Yandex Cloud OS (HEAD запрос).
+        После подтверждения video.status → active, expires_at = now + 6 месяцев,
+        request.status → pending.
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [request_id]
+              properties:
+                request_id:
+                  type: string
+                  format: uuid
+                comment:
+                  type: string
+                  description: Комментарий участника к запросу ОС
+                  maxLength: 1000
+      responses:
+        '200':
+          description: Видео активировано, запрос перешёл в pending
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoConfirmResponse'
+        '400':
+          description: Объект не найден в хранилище
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  /videos/{video_id}:
+    parameters:
+      - $ref: '#/components/parameters/VideoId'
+    get:
+      tags: [videos]
+      summary: Получить presigned GET URL для просмотра видео
+      description: >
+        Возвращает временный URL (TTL 15 минут).
+        Доступно участнику-владельцу и судье по активному запросу ОС.
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Временный URL для просмотра
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/VideoViewResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '410':
+          description: Видео удалено (истёк срок хранения)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  # ── FEEDBACK RESPONSES ────────────────────────────────────────────────────
+
+  /feedback/responses:
+    post:
+      tags: [feedback-responses]
+      summary: Отправить ОС (только судья-исполнитель запроса)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedbackResponse'
+      responses:
+        '201':
+          description: ОС сохранена, участник уведомлён
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: ОС по этому запросу уже отправлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /feedback/responses/{response_id}:
+    parameters:
+      - $ref: '#/components/parameters/ResponseId'
+    get:
+      tags: [feedback-responses]
+      summary: Получить ОС (участник-владелец или судья-автор)
+      security:
+        - BearerAuth: []
+      responses:
+        '200':
+          description: Данные ОС
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '404':
+          $ref: '#/components/responses/NotFound'
+
+  # ── FEEDBACK RATINGS ──────────────────────────────────────────────────────
+
+  /feedback/ratings:
+    post:
+      tags: [feedback-ratings]
+      summary: Оценить ОС (только участник после подтверждения)
+      security:
+        - BearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CreateFeedbackRating'
+      responses:
+        '201':
+          description: Оценка сохранена, рейтинг судьи пересчитан
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/FeedbackRating'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '403':
+          $ref: '#/components/responses/Forbidden'
+        '409':
+          description: Оценка уже поставлена
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '422':
+          $ref: '#/components/responses/UnprocessableEntity'
+
+# ---------------------------------------------------------------------------
+# COMPONENTS
+# ---------------------------------------------------------------------------
+components:
+
+  securitySchemes:
+    BearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+
+  # ── PARAMETERS ────────────────────────────────────────────────────────────
+  parameters:
+    CompetitionId:
+      name: competition_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    RequestId:
+      name: request_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    ResponseId:
+      name: response_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    VideoId:
+      name: video_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    JudgeId:
+      name: judge_id
+      in: path
+      required: true
+      schema:
+        type: string
+        format: uuid
+
+    Page:
+      name: page
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        default: 1
+
+    Limit:
+      name: limit
+      in: query
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+
+  # ── RESPONSES ─────────────────────────────────────────────────────────────
+  responses:
+    BadRequest:
+      description: Некорректный запрос
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Unauthorized:
+      description: Не аутентифицирован
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Forbidden:
+      description: Недостаточно прав (403)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    NotFound:
+      description: Ресурс не найден
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    Conflict:
+      description: Конфликт (ресурс уже существует)
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/Error'
+
+    UnprocessableEntity:
+      description: Ошибка валидации данных
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+
+  # ── SCHEMAS ───────────────────────────────────────────────────────────────
+  schemas:
+
+    # Общие
+    Error:
+      type: object
+      required: [error, code]
+      properties:
+        error:
+          type: string
+          example: Ресурс не найден
+        code:
+          type: string
+          example: NOT_FOUND
+
+    ValidationError:
+      type: object
+      required: [error, code, details]
+      properties:
+        error:
+          type: string
+          example: Ошибка валидации
+        code:
+          type: string
+          example: VALIDATION_ERROR
+        details:
+          type: array
+          items:
+            type: object
+            properties:
+              field:
+                type: string
+              message:
+                type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+        limit:
+          type: integer
+        total:
+          type: integer
+
+    # Auth
+    RegisterRequest:
+      type: object
+      required: [email, phone, password, role, full_name]
+      properties:
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+          example: '+79001234567'
+        password:
+          type: string
+          minLength: 8
+        role:
+          type: string
+          enum: [participant, judge, organizer]
+        full_name:
+          type: string
+        bio:
+          type: string
+          description: Только для судей
+
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResponse:
+      type: object
+      properties:
+        access_token:
+          type: string
+        refresh_token:
+          type: string
+        user:
+          $ref: '#/components/schemas/UserShort'
+
+    UserShort:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+        role:
+          type: string
+          enum: [participant, judge, organizer]
+        full_name:
+          type: string
+
+    # Competitions
+    Competition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        organizer_id:
+          type: string
+          format: uuid
+        organizer_name:
+          type: string
+        organizer_surname:
+          type: string
+        title:
+          type: string
+        event_date:
+          type: string
+          format: date
+        participant_limit:
+          type: integer
+        entry_fee:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum: [draft, open, closed, finished]
+        payout_status:
+          type: string
+          enum: [pending, completed, failed]
+        created_at:
+          type: string
+          format: date-time
+
+    CompetitionList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Competition'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    CreateCompetitionRequest:
+      type: object
+      required: [title, event_date, entry_fee]
+      properties:
+        title:
+          type: string
+        event_date:
+          type: string
+          format: date
+        participant_limit:
+          type: integer
+          minimum: 1
+        entry_fee:
+          type: number
+          format: decimal
+          minimum: 0
+        
+
+    UpdateCompetitionRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        participant_limit:
+          type: integer
+        status:
+          type: string
+          enum: [draft, open, closed, finished]
+
+    CompetitionSummary:
+      type: object
+      properties:
+        competition_id:
+          type: string
+          format: uuid
+        total_requests:
+          type: integer
+        completed:
+          type: integer
+        pending:
+          type: integer
+        refunded:
+          type: integer
+        total_captured_amount:
+          type: number
+          format: decimal
+          description: Сумма всех захваченных платежей (без возвратов)
+        organizer_share:
+          type: number
+          format: decimal
+          description: Расчётная выплата организатору
+        payout_status:
+          type: string
+          enum: [pending, completed, failed]
+
+    # Registrations
+    RegistrationCreated:
+      type: object
+      properties:
+        registration_id:
+          type: string
+          format: uuid
+        payment_url:
+          type: string
+          format: uri
+          description: URL страницы оплаты на платёжном шлюзе
+
+    RegistrationList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/Registration'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    Registration:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        participant_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        payment_status:
+          type: string
+          enum: [pending, paid]
+        registered_at:
+          type: string
+          format: date-time
+
+    # Judges
+    JudgeProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        bio:
+          type: string
+        rating:
+          type: number
+          format: decimal
+          description: Средний рейтинг по всем ОС
+
+    JudgeList:
+      type: object
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/JudgeProfile'
+        pagination:
+          $ref: '#/components/schemas/Pagination'
+
+    AssignJudgeRequest:
+          type: object
+          required: [judge_id]
+          properties:
+            judge_id:
+              type: string
+              format: uuid
+    
+    JudgeAssignment:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        competition_id:
+          type: string
+          format: uuid
+        judge_id:
+          type: string
+          format: uuid
+        full_name:
+          type: string
+        assigned_at:
+          type: string
+          format: date-time
+
+    # Feedback Requests
+    CreateFeedbackRequest:
+      type: object
+      required: [judge_id, competition_id, comment]
+      properties:
+        judge_id:
+          type: string
+          format: uuid
+        competition_id:
+          type: string
+          format: uuid
+        comment:
+          type: string
+
+    FeedbackRequestCreated:
+      type: object
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        payment_url:
+          type: string
+          format: uri
+          description: URL страницы оплаты (hold) на платёжном шлюзе
+        status:
+          type: string
+          enum: [awaiting_payment]
+
+    FeedbackRequest:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        judge_id:
+          type: string
+          format: uuid
+        participant_id:
+          type: string
+          format: uuid
+        video_id:
+          type: string
+          format: uuid
+          nullable: true
+        comment:
+          type: string
+          nullable: true
+        price:
+          type: number
+          format: decimal
+        status:
+          type: string
+          enum:
+            - awaiting_payment
+            - awaiting_video
+            - pending
+            - awaiting_confirmation
+            - completed
+            - refunded
+        created_at:
+          type: string
+          format: date-time
+        deadline_at:
+          type: string
+          format: date-time
+
+    FeedbackRequestAction:
+      type: object
+      required: [action]
+      properties:
+        action:
+          type: string
+          enum: [confirm]
+          description: >
+            confirm — участник подтверждает полученную ОС,
+            инициирует capture средств судье
+
+    # Videos
+    UploadUrlRequest:
+      type: object
+      required: [request_id, filename, content_type, file_size]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        content_type:
+          type: string
+          enum: [video/mp4, video/quicktime]
+        file_size:
+          type: integer
+          description: Размер файла в байтах
+
+    UploadUrlResponse:
+      type: object
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        upload_url:
+          type: string
+          format: uri
+          description: presigned PUT URL (TTL 1 час)
+        expires_at:
+          type: string
+          format: date-time
+
+    VideoConfirmResponse:
+      type: object
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        status:
+          type: string
+          enum: [active]
+        expires_at:
+          type: string
+          format: date-time
+          description: Дата удаления видео (now + 1 месяц)
+        request_status:
+          type: string
+          enum: [pending]
+
+    VideoViewResponse:
+      type: object
+      properties:
+        video_id:
+          type: string
+          format: uuid
+        view_url:
+          type: string
+          format: uri
+          description: presigned GET URL (TTL 15 минут)
+        url_expires_at:
+          type: string
+          format: date-time
+        video_length:
+          type: string
+
+    # Feedback Responses
+    CreateFeedbackResponse:
+      type: object
+      required: [request_id, strengths, errors, recommendations]
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        strengths:
+          type: string
+          minLength: 10
+        errors:
+          type: string
+          minLength: 10
+        recommendations:
+          type: string
+          minLength: 10
+
+    FeedbackResponse:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        request_id:
+          type: string
+          format: uuid
+        strengths:
+          type: string
+        errors:
+          type: string
+        recommendations:
+          type: string
+        submitted_at:
+          type: string
+          format: date-time
+
+    # Feedback Ratings
+    CreateFeedbackRating:
+      type: object
+      required: [response_id, score]
+      properties:
+        response_id:
+          type: string
+          format: uuid
+        score:
+          type: integer
+          minimum: 1
+          maximum: 5
+
+    FeedbackRating:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        response_id:
+          type: string
+          format: uuid
+        score:
+          type: integer
+        judge_new_rating:
+          type: number
+          format: decimal
+          description: Обновлённый рейтинг судьи после пересчёта
+        rated_at:
+          type: string
+          format: date-time
+
+    # Payments
+    PaymentWebhook:
+      type: object
+      required: [status, related_id]
+      properties:
+        status:
+          type: string
+          enum: [succeeded, failed, held, captured, released, paid_out, capture_failed]
+        related_id:
+          type: string
+          format: uuid
+          description: ID регистрации, запроса ОС или соревнования
+        hold_id:
+          type: string
+          nullable: true
+          description: ID удержания на стороне шлюза
+        amount:
+          type: number
+          format: decimal
+        gateway_ref:
+          type: string
+          description: ID транзакции на стороне платёжного шлюза
