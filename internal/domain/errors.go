@@ -10,6 +10,10 @@ var (
 	ErrJudgeLimitReached   = errors.New("judge limit reached")
 	ErrAlreadyAssigned     = errors.New("judge already assigned")
 	ErrCompetitionClosed   = errors.New("competition not open for changes")
+
+	ErrAlreadyRegistered       = errors.New("participant already registered")
+	ErrRegistrationClosed      = errors.New("registration is closed")
+	ErrParticipantLimitReached = errors.New("participant limit reached")
 )
 
 const MaxJudgesPerCompetition = 5
