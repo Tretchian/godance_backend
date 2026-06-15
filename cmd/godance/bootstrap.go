@@ -1,10 +1,12 @@
 package main
 
 import (
+	"godance/internal/gateway"
 	authhandler "godance/internal/handler/auth"
 	competitionhandler "godance/internal/handler/competition"
 	feedbackhandler "godance/internal/handler/feedback"
 	judgehandler "godance/internal/handler/judge"
+	paymenthandler "godance/internal/handler/payment"
 	registrationhandler "godance/internal/handler/registration"
 	competitionrepo "godance/internal/repository/competition"
 	feedbackrepo "godance/internal/repository/feedback"
@@ -29,10 +31,14 @@ func setupRoutes(r *gin.Engine, db *gorm.DB) {
 	competitionHandler := competitionhandler.NewHandler(service)
 	competitionHandler.Register(api)
 
+	paymentGateway := gateway.NewStubPayment()
 	feedbackRepo := feedbackrepo.NewRepository(db)
-	feedbackService := feedbackservice.NewService(feedbackRepo)
+	feedbackService := feedbackservice.NewService(feedbackRepo, paymentGateway)
 	feedbackHandler := feedbackhandler.NewHandler(feedbackService)
 	feedbackHandler.Register(api)
+
+	paymentHandler := paymenthandler.NewHandler(feedbackService)
+	paymentHandler.Register(api)
 
 	judgeRepo := judgerepo.NewRepository(db)
 	judgeService := judgeservice.NewService(judgeRepo)

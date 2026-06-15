@@ -14,6 +14,15 @@ var (
 	ErrAlreadyRegistered       = errors.New("participant already registered")
 	ErrRegistrationClosed      = errors.New("registration is closed")
 	ErrParticipantLimitReached = errors.New("participant limit reached")
+
+	ErrFeedbackRequestNotFound  = errors.New("feedback request not found")
+	ErrFeedbackResponseNotFound = errors.New("feedback response not found")
+	ErrJudgeNotAssigned         = errors.New("judge is not assigned to this competition")
+	ErrInvalidStatusTransition  = errors.New("operation not allowed in current status")
+	ErrNotRequestParticipant    = errors.New("not the request participant")
+	ErrNotRequestJudge          = errors.New("not the assigned judge of the request")
+	ErrResponseAlreadyExists    = errors.New("feedback response already submitted")
+	ErrRatingAlreadyExists      = errors.New("feedback already rated")
 )
 
 const MaxJudgesPerCompetition = 5
