@@ -22,17 +22,13 @@ func NewRepository(db *gorm.DB) domain.JudgeRepository {
 func (r *repository) ListByCompetition(competitionID uint) ([]models.JudgesCompetition, error) {
 	var assignments []models.JudgesCompetition
 	err := r.db.
-		Preload("Judge.Profile"). // нужны full_name и rating из profiles
+		Preload("Judge.Profile").
 		Where("competition_id = ?", competitionID).
 		Order("assigned_at").
 		Find(&assignments).Error
 	return assignments, err
 }
 
-// Assign — атомарное назначение под блокировкой строки соревнования.
-// Инвариант "не более limit судей" удерживается за счёт сериализации
-// параллельных назначений через FOR UPDATE на строке-родителе: COUNT видит
-// уже зафиксированные строки, а конкурирующая транзакция ждёт на этой же строке.
 func (r *repository) Assign(competitionID, judgeID, callerID uint, limit int) (*models.JudgesCompetition, error) {
 	var assignment models.JudgesCompetition
 
