@@ -21,7 +21,23 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	{
 		auth.POST("/register", h.CreateUser)
 		auth.POST("/login", h.Login)
+		auth.POST("/refresh", h.Refresh)
 	}
+}
+
+func (h *Handler) Refresh(c *gin.Context) {
+	var req dto.RefreshRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	result, err := h.service.Refresh(req.RefreshToken)
+	if err != nil {
+		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		return
+	}
+	c.JSON(http.StatusOK, result)
 }
 
 func (h *Handler) CreateUser(c *gin.Context) {

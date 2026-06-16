@@ -1,26 +1,31 @@
 package payment
 
 import (
+	"errors"
 	"net/http"
 
+	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/service/feedback"
+	"godance/internal/service/registration"
 
 	"github.com/gin-gonic/gin"
 )
 
 type Handler struct {
-	feedback *feedback.Service
+	feedback     *feedback.Service
+	registration *registration.Service
 }
 
-func NewHandler(feedbackService *feedback.Service) *Handler {
-	return &Handler{feedback: feedbackService}
+func NewHandler(feedbackService *feedback.Service, registrationService *registration.Service) *Handler {
+	return &Handler{feedback: feedbackService, registration: registrationService}
 }
 
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	webhooks := rg.Group("/payments/webhooks")
 	{
 		webhooks.POST("/feedback", h.FeedbackWebhook)
+		webhooks.POST("/registration", h.RegistrationWebhook)
 	}
 }
 
@@ -34,6 +39,25 @@ func (h *Handler) FeedbackWebhook(c *gin.Context) {
 	}
 
 	if err := h.feedback.HandleFeedbackWebhook(payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+	c.Status(http.StatusOK)
+}
+
+// RegistrationWebhook подтверждает оплату взноса участника.
+func (h *Handler) RegistrationWebhook(c *gin.Context) {
+	var payload dto.PaymentWebhook
+	if err := c.ShouldBindJSON(&payload); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	if err := h.registration.HandleRegistrationWebhook(payload); err != nil {
+		if errors.Is(err, domain.ErrRegistrationNotFound) {
+			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
+			return
+		}
 		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
 		return
 	}

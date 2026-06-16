@@ -108,3 +108,16 @@ func (r *repository) Register(competitionID, participantID uint) (*models.Regist
 	}
 	return &registration, nil
 }
+
+func (r *repository) MarkPaid(id uint) error {
+	res := r.db.Model(&models.Registration{}).
+		Where("id = ?", id).
+		Update("payment_status", string(types.RegistrationPaymentStatusPaid))
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return domain.ErrRegistrationNotFound
+	}
+	return nil
+}

@@ -7,6 +7,7 @@ import (
 	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/models"
+	types "godance/internal/type"
 )
 
 type Service struct {
@@ -48,6 +49,19 @@ func (s *Service) Register(competitionID, participantID uint) (*dto.Registration
 		RegistrationID: registration.ID,
 		PaymentURL:     paymentURL(registration.ID),
 	}, nil
+}
+
+// HandleRegistrationWebhook отмечает регистрацию оплаченной по событию шлюза.
+// Идемпотентен: статусы, не означающие успешную оплату, игнорируются.
+func (s *Service) HandleRegistrationWebhook(p dto.PaymentWebhook) error {
+	switch types.PaymentWebhookStatus(p.Status) {
+	case types.PaymentWebhookStatusSucceeded,
+		types.PaymentWebhookStatusCaptured,
+		types.PaymentWebhookStatusPaidOut:
+		return s.repo.MarkPaid(p.RelatedID)
+	default:
+		return nil
+	}
 }
 
 func toRegistrationItem(r models.Registration) dto.RegistrationItem {

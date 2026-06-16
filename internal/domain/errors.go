@@ -31,6 +31,9 @@ var (
 	ErrRequestNotAwaitingVideo = errors.New("feedback request is not awaiting a video")
 	ErrVideoObjectMissing      = errors.New("uploaded object not found in storage")
 	ErrVideoGone               = errors.New("video has been deleted")
+
+	ErrInvalidToken         = errors.New("invalid or expired token")
+	ErrRegistrationNotFound = errors.New("registration not found")
 )
 
 const MaxJudgesPerCompetition = 5

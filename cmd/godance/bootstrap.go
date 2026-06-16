@@ -42,9 +42,6 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, storage domain.VideoStorage) {
 	feedbackHandler := feedbackhandler.NewHandler(feedbackService)
 	feedbackHandler.Register(api)
 
-	paymentHandler := paymenthandler.NewHandler(feedbackService)
-	paymentHandler.Register(api)
-
 	judgeRepo := judgerepo.NewRepository(db)
 	judgeService := judgeservice.NewService(judgeRepo)
 	judgeHandler := judgehandler.NewHandler(judgeService)
@@ -54,6 +51,9 @@ func setupRoutes(r *gin.Engine, db *gorm.DB, storage domain.VideoStorage) {
 	registrationService := registrationservice.NewService(registrationRepo)
 	registrationHandler := registrationhandler.NewHandler(registrationService)
 	registrationHandler.Register(api)
+
+	paymentHandler := paymenthandler.NewHandler(feedbackService, registrationService)
+	paymentHandler.Register(api)
 
 	videoRepo := videorepo.NewRepository(db)
 	videoService := videoservice.NewService(videoRepo, storage, feedbackRepo)
