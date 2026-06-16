@@ -10,6 +10,8 @@ var (
 	ErrJudgeLimitReached   = errors.New("judge limit reached")
 	ErrAlreadyAssigned     = errors.New("judge already assigned")
 	ErrCompetitionClosed   = errors.New("competition not open for changes")
+	ErrAssignmentNotFound  = errors.New("judge assignment not found")
+	ErrJudgeHasRequests    = errors.New("judge has feedback requests in this competition")
 
 	ErrAlreadyRegistered       = errors.New("participant already registered")
 	ErrRegistrationClosed      = errors.New("registration is closed")

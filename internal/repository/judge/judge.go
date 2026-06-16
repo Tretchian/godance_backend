@@ -101,3 +101,73 @@ func (r *repository) Assign(competitionID, judgeID, callerID uint, limit int) (*
 	}
 	return &assignment, nil
 }
+
+func (r *repository) Unassign(competitionID, judgeID, callerID uint) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var comp models.Competition
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&comp, competitionID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrCompetitionNotFound
+			}
+			return err
+		}
+		if comp.OrganizerID != callerID {
+			return domain.ErrNotOwner
+		}
+
+		// Снятие запрещено, если по судье уже есть запросы ОС.
+		var requests int64
+		if err := tx.Model(&models.FeedbackRequest{}).
+			Where("competition_id = ? AND judge_id = ?", competitionID, judgeID).
+			Count(&requests).Error; err != nil {
+			return err
+		}
+		if requests > 0 {
+			return domain.ErrJudgeHasRequests
+		}
+
+		res := tx.Where("competition_id = ? AND judge_id = ?", competitionID, judgeID).
+			Delete(&models.JudgesCompetition{})
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			return domain.ErrAssignmentNotFound
+		}
+		return nil
+	})
+}
+
+func (r *repository) ListJudges(page, limit int) ([]models.User, int64, error) {
+	var total int64
+	if err := r.db.Model(&models.User{}).
+		Where("role = ?", string(types.UserRoleJudge)).
+		Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var judges []models.User
+	err := r.db.
+		Preload("Profile").
+		Where("role = ?", string(types.UserRoleJudge)).
+		Order("id").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&judges).Error
+	return judges, total, err
+}
+
+func (r *repository) GetJudge(id uint) (*models.User, error) {
+	var judge models.User
+	err := r.db.Preload("Profile").
+		Where("id = ? AND role = ?", id, string(types.UserRoleJudge)).
+		First(&judge).Error
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &judge, nil
+}
