@@ -1,0 +1,40 @@
+# Продакшн-оверлей: добавляет Caddy как reverse-proxy с авто-HTTPS.
+# Запуск:
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+#
+# Caddy — единственный сервис, смотрящий наружу (80/443). app/minio доступны
+# только внутри docker-сети. Требуются переменные API_DOMAIN, ACME_EMAIL
+# (и STORAGE_DOMAIN, если раздаёте видео через публичный MinIO).
+services:
+  caddy:
+    image: caddy:2-alpine
+    restart: unless-stopped
+    environment:
+      API_DOMAIN: ${API_DOMAIN}
+      STORAGE_DOMAIN: ${STORAGE_DOMAIN:-}
+      ACME_EMAIL: ${ACME_EMAIL}
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    depends_on:
+      - app
+
+  app:
+    restart: unless-stopped
+
+  worker:
+    restart: unless-stopped
+
+  postgres:
+    restart: unless-stopped
+
+  minio:
+    restart: unless-stopped
+
+volumes:
+  caddy_data:
+  caddy_config:

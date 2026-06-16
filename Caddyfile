@@ -1,0 +1,18 @@
+# Глобальные настройки ACME (Let's Encrypt).
+{
+	email {$ACME_EMAIL}
+}
+
+# API: https://api.<домен> → Gin на app:8080
+{$API_DOMAIN} {
+	encode gzip
+	reverse_proxy app:8080
+}
+
+# Публичный MinIO для presigned-ссылок (видео).
+# Раскомментируйте и задайте STORAGE_DOMAIN, если раздаёте видео.
+# Тогда в .env: MINIO_PUBLIC_ENDPOINT=https://<storage-домен>
+#
+# {$STORAGE_DOMAIN} {
+# 	reverse_proxy minio:9000
+# }
