@@ -3,17 +3,21 @@ package main
 import (
 	"godance/config"
 	"godance/internal/domain"
+	"godance/internal/middleware"
 	"godance/internal/models"
 	"godance/internal/storage"
 
 	"log"
 	"os"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 )
 
 func main() {
 	r := gin.Default()
+	r.Use(middleware.CORS(corsOrigins()))
+
 	db, err := config.NewDB()
 
 	if err != nil {
@@ -49,4 +53,17 @@ func main() {
 	setupRoutes(r, db, store)
 
 	r.Run(":8080")
+}
+
+// corsOrigins возвращает белый список origin-ов из CORS_ALLOWED_ORIGINS
+// (через запятую) либо дефолт для дев- и прод-фронта. Превью *.vercel.app
+// разрешаются всегда (см. middleware.CORS).
+func corsOrigins() []string {
+	if raw := os.Getenv("CORS_ALLOWED_ORIGINS"); raw != "" {
+		return strings.Split(raw, ",")
+	}
+	return []string{
+		"http://localhost:3000",
+		"https://dancefeedbackplatform.vercel.app",
+	}
 }
