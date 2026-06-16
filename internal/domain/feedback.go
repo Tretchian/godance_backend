@@ -28,4 +28,7 @@ type FeedbackRepository interface {
 	// CreateRating сохраняет оценку и пересчитывает средний рейтинг судьи,
 	// возвращая обновлённое значение.
 	CreateRating(rating *models.FeedbackRating) (judgeNewRating float64, err error)
+
+	// ListExpired возвращает незавершённые запросы ОС с истёкшим deadline_at.
+	ListExpired(now time.Time) ([]models.FeedbackRequest, error)
 }

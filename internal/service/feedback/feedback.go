@@ -180,6 +180,51 @@ func (s *Service) HandleFeedbackWebhook(p dto.PaymentWebhook) error {
 	return err
 }
 
+// ProcessExpired применяет политику таймаутов к запросам с истёкшим deadline:
+//   - судья не ответил (awaiting_payment/awaiting_video/pending) → возврат участнику;
+//   - участник не подтвердил (awaiting_confirmation) → авто-capture судье.
+//
+// Возвращает число обработанных запросов. Идемпотентен: конкурентно уже
+// обработанные запросы (ErrInvalidStatusTransition) пропускаются.
+func (s *Service) ProcessExpired() (int, error) {
+	expired, err := s.repo.ListExpired(time.Now())
+	if err != nil {
+		return 0, err
+	}
+
+	processed := 0
+	for _, req := range expired {
+		var transitionErr error
+		switch req.Status {
+		case string(types.FeedbackRequestStatusAwaitingConfirmation):
+			if _, transitionErr = s.repo.Transition(
+				req.ID,
+				[]string{string(types.FeedbackRequestStatusAwaitingConfirmation)},
+				string(types.FeedbackRequestStatusCompleted),
+			); transitionErr == nil {
+				transitionErr = s.gateway.Capture(req.ID)
+			}
+		default:
+			if _, transitionErr = s.repo.Transition(
+				req.ID,
+				[]string{req.Status},
+				string(types.FeedbackRequestStatusRefunded),
+			); transitionErr == nil {
+				transitionErr = s.gateway.Release(req.ID)
+			}
+		}
+
+		if errors.Is(transitionErr, domain.ErrInvalidStatusTransition) {
+			continue
+		}
+		if transitionErr != nil {
+			return processed, transitionErr
+		}
+		processed++
+	}
+	return processed, nil
+}
+
 func toRequestItem(r *models.FeedbackRequest) *dto.FeedbackRequestItem {
 	item := &dto.FeedbackRequestItem{
 		ID:            r.ID,

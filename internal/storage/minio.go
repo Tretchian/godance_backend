@@ -3,6 +3,7 @@ package storage
 import (
 	"context"
 	"errors"
+	"log"
 	"os"
 	"time"
 
@@ -13,6 +14,11 @@ import (
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	s3types "github.com/aws/aws-sdk-go-v2/service/s3/types"
 	smithyhttp "github.com/aws/smithy-go/transport/http"
+)
+
+const (
+	bucketEnsureAttempts = 10
+	bucketEnsureBackoff  = 3 * time.Second
 )
 
 // MinIO реализует domain.VideoStorage поверх S3-совместимого MinIO.
@@ -71,6 +77,19 @@ func NewMinIO() (*MinIO, error) {
 }
 
 func (m *MinIO) ensureBucket(ctx context.Context) error {
+	// Ретраим, чтобы переждать старт MinIO в docker-compose.
+	var err error
+	for attempt := 1; attempt <= bucketEnsureAttempts; attempt++ {
+		if err = m.tryEnsureBucket(ctx); err == nil {
+			return nil
+		}
+		log.Printf("minio ensure bucket attempt %d/%d failed: %v", attempt, bucketEnsureAttempts, err)
+		time.Sleep(bucketEnsureBackoff)
+	}
+	return err
+}
+
+func (m *MinIO) tryEnsureBucket(ctx context.Context) error {
 	if _, err := m.client.HeadBucket(ctx, &s3.HeadBucketInput{
 		Bucket: aws.String(m.bucket),
 	}); err == nil {

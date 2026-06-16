@@ -70,6 +70,20 @@ func (r *repository) GetRequest(id uint) (*models.FeedbackRequest, error) {
 	return &request, nil
 }
 
+func (r *repository) ListExpired(now time.Time) ([]models.FeedbackRequest, error) {
+	active := []string{
+		string(types.FeedbackRequestStatusAwaitingPayment),
+		string(types.FeedbackRequestStatusAwaitingVideo),
+		string(types.FeedbackRequestStatusPending),
+		string(types.FeedbackRequestStatusAwaitingConfirmation),
+	}
+	var requests []models.FeedbackRequest
+	err := r.db.
+		Where("deadline_at IS NOT NULL AND deadline_at < ? AND status IN ?", now, active).
+		Find(&requests).Error
+	return requests, err
+}
+
 func (r *repository) Transition(id uint, allowedFrom []string, to string) (*models.FeedbackRequest, error) {
 	var request models.FeedbackRequest
 	err := r.db.Transaction(func(tx *gorm.DB) error {
