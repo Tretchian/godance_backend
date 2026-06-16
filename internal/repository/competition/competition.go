@@ -36,7 +36,11 @@ func (r *repository) FindPage(status string, page int, limit int) ([]models.Comp
 		return nil, 0, err
 	}
 
-	err := query.Offset((page - 1) * limit).Limit(limit).Find(&competitions).Error
+	err := query.
+		Preload("Organizer.Profile").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&competitions).Error
 
 	return competitions, total, err
 }

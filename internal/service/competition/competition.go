@@ -129,17 +129,9 @@ func (s *Service) GetPage(status string, page int, limit int) (*dto.CompetitionL
 		return nil, err
 	}
 
-	items := make([]dto.CompetitionItem, len(competitions))
-	for i, c := range competitions {
-		items[i] = dto.CompetitionItem{
-			OrganizerID:        c.OrganizerID,
-			Title:              c.Title,
-			EventDate:          c.EventDate.Format("2006-01-02"),
-			ParticipantLimit:   c.ParticipantLimit,
-			EntryFee:           c.EntryFee,
-			FeedbackFeePercent: c.FeedbackFeePercent,
-			Status:             c.Status,
-		}
+	items := make([]dto.Competition, len(competitions))
+	for i := range competitions {
+		items[i] = *toCompetition(&competitions[i])
 	}
 
 	return &dto.CompetitionListResponse{

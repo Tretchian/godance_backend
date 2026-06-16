@@ -35,19 +35,9 @@ type Competition struct {
 	CreatedAt        string   `json:"created_at"`
 }
 
-type CompetitionItem struct {
-	OrganizerID        uint     `json:"organizer_id"`
-	Title              string   `json:"title"`
-	EventDate          string   `json:"event_date"`
-	ParticipantLimit   *int     `json:"participant_limit"`
-	EntryFee           *float64 `json:"entry_fee"`
-	FeedbackFeePercent *float64 `json:"organizer_fee_percent"`
-	Status             string   `json:"status"`
-}
-
 type CompetitionListResponse struct {
-	Data       []CompetitionItem `json:"data"`
-	Pagination Pagination        `json:"pagination"`
+	Data       []Competition `json:"data"`
+	Pagination Pagination    `json:"pagination"`
 }
 
 type CompetitionSummary struct {
