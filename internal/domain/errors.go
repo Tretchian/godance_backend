@@ -34,6 +34,9 @@ var (
 
 	ErrInvalidToken         = errors.New("invalid or expired token")
 	ErrRegistrationNotFound = errors.New("registration not found")
+
+	ErrEmailTaken         = errors.New("email already registered")
+	ErrInvalidCredentials = errors.New("invalid email or password")
 )
 
 const MaxJudgesPerCompetition = 5

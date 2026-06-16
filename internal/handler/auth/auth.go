@@ -1,9 +1,11 @@
 package auth
 
 import (
-	"godance/internal/dto"
-	"godance/internal/service/auth"
 	"net/http"
+
+	"godance/internal/dto"
+	"godance/internal/httpx"
+	"godance/internal/service/auth"
 
 	"github.com/gin-gonic/gin"
 )
@@ -25,41 +27,47 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	}
 }
 
+func (h *Handler) CreateUser(c *gin.Context) {
+	var req dto.RegistrationRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.Bind(c, err)
+		return
+	}
+
+	result, err := h.service.CreateUser(req)
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+func (h *Handler) Login(c *gin.Context) {
+	var req dto.LoginRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.Bind(c, err)
+		return
+	}
+
+	result, err := h.service.Login(req)
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
 func (h *Handler) Refresh(c *gin.Context) {
 	var req dto.RefreshRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.Bind(c, err)
 		return
 	}
 
 	result, err := h.service.Refresh(req.RefreshToken)
 	if err != nil {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": err.Error()})
+		httpx.Error(c, err)
 		return
-	}
-	c.JSON(http.StatusOK, result)
-}
-
-func (h *Handler) CreateUser(c *gin.Context) {
-	var req dto.RegistrationRequest
-	c.ShouldBindJSON(&req)
-
-	result, err := h.service.CreateUser(req)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
-	}
-	c.JSON(http.StatusOK, result)
-}
-
-func (h *Handler) Login(c *gin.Context) {
-	var req dto.LoginRequest
-	c.ShouldBindJSON(&req)
-
-	result, err := h.service.Login(req)
-
-	if err != nil {
-		c.JSON(http.StatusBadRequest, err)
 	}
 	c.JSON(http.StatusOK, result)
 }

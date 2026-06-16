@@ -1,11 +1,11 @@
 package registration
 
 import (
-	"errors"
 	"net/http"
 	"strconv"
 
-	"godance/internal/domain"
+	"godance/internal/dto"
+	"godance/internal/httpx"
 	"godance/internal/middleware"
 	"godance/internal/service/registration"
 	types "godance/internal/type"
@@ -42,7 +42,7 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 func (h *Handler) GetList(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid competition id"})
+		c.JSON(http.StatusBadRequest, dto.Error{Error: "invalid competition id", Code: "BAD_REQUEST"})
 		return
 	}
 
@@ -51,8 +51,7 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	result, err := h.service.ListForCompetition(uint(id), middleware.UserID(c), page, limit)
 	if err != nil {
-		status, msg := mapError(err)
-		c.JSON(status, gin.H{"error": msg})
+		httpx.Error(c, err)
 		return
 	}
 	c.JSON(http.StatusOK, result)
@@ -61,14 +60,13 @@ func (h *Handler) GetList(c *gin.Context) {
 func (h *Handler) Create(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
 	if err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid competition id"})
+		c.JSON(http.StatusBadRequest, dto.Error{Error: "invalid competition id", Code: "BAD_REQUEST"})
 		return
 	}
 
 	result, err := h.service.Register(uint(id), middleware.UserID(c))
 	if err != nil {
-		status, msg := mapError(err)
-		c.JSON(status, gin.H{"error": msg})
+		httpx.Error(c, err)
 		return
 	}
 	c.JSON(http.StatusCreated, result)
@@ -88,20 +86,4 @@ func clampLimit(raw string) int {
 		return 20
 	}
 	return limit
-}
-
-func mapError(err error) (int, string) {
-	switch {
-	case errors.Is(err, domain.ErrCompetitionNotFound):
-		return http.StatusNotFound, err.Error()
-	case errors.Is(err, domain.ErrNotOwner):
-		return http.StatusForbidden, err.Error()
-	case errors.Is(err, domain.ErrAlreadyRegistered):
-		return http.StatusConflict, err.Error()
-	case errors.Is(err, domain.ErrRegistrationClosed),
-		errors.Is(err, domain.ErrParticipantLimitReached):
-		return http.StatusBadRequest, err.Error()
-	default:
-		return http.StatusInternalServerError, "internal error"
-	}
 }

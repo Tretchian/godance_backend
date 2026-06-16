@@ -23,12 +23,15 @@ import (
 	videoservice "godance/internal/service/video"
 
 	"godance/internal/domain"
+	"godance/internal/httpx"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
 func setupRoutes(r *gin.Engine, db *gorm.DB, storage domain.VideoStorage) {
+	httpx.RegisterValidatorTagName()
+
 	api := r.Group("/api/v1")
 
 	repo := competitionrepo.NewRepository(db)

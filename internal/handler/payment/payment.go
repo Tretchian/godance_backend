@@ -1,11 +1,10 @@
 package payment
 
 import (
-	"errors"
 	"net/http"
 
-	"godance/internal/domain"
 	"godance/internal/dto"
+	"godance/internal/httpx"
 	"godance/internal/service/feedback"
 	"godance/internal/service/registration"
 
@@ -34,12 +33,12 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 func (h *Handler) FeedbackWebhook(c *gin.Context) {
 	var payload dto.PaymentWebhook
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.Bind(c, err)
 		return
 	}
 
 	if err := h.feedback.HandleFeedbackWebhook(payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.Error(c, err)
 		return
 	}
 	c.Status(http.StatusOK)
@@ -49,16 +48,12 @@ func (h *Handler) FeedbackWebhook(c *gin.Context) {
 func (h *Handler) RegistrationWebhook(c *gin.Context) {
 	var payload dto.PaymentWebhook
 	if err := c.ShouldBindJSON(&payload); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.Bind(c, err)
 		return
 	}
 
 	if err := h.registration.HandleRegistrationWebhook(payload); err != nil {
-		if errors.Is(err, domain.ErrRegistrationNotFound) {
-			c.JSON(http.StatusNotFound, gin.H{"error": err.Error()})
-			return
-		}
-		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		httpx.Error(c, err)
 		return
 	}
 	c.Status(http.StatusOK)

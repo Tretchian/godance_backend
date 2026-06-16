@@ -1,12 +1,14 @@
 package auth
 
 import (
+	"errors"
+	"os"
+	"time"
+
 	"godance/internal/domain"
 	"godance/internal/dto"
 	"godance/internal/models"
 	types "godance/internal/type"
-	"os"
-	"time"
 
 	"github.com/golang-jwt/jwt"
 	"golang.org/x/crypto/bcrypt"
@@ -21,49 +23,61 @@ func NewService(repo domain.UserRepository) *Service {
 }
 
 func (s *Service) CreateUser(req dto.RegistrationRequest) (*dto.AuthResponse, error) {
-	foundUser, err := s.repo.FindByEmail(req.Email)
-
-	if foundUser != nil {
+	if _, err := s.repo.FindByEmail(req.Email); err == nil {
+		return nil, domain.ErrEmailTaken
+	} else if !errors.Is(err, domain.ErrUserNotFound) {
 		return nil, err
 	}
-	passHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 
+	passHash, err := bcrypt.GenerateFromPassword([]byte(req.Password), 10)
 	if err != nil {
 		return nil, err
 	}
 
+	bio := ""
+	if req.Bio != nil {
+		bio = *req.Bio
+	}
 	newUser := models.User{
 		Email:        req.Email,
 		PasswordHash: string(passHash),
 		Phone:        req.Phone,
 		Role:         string(req.Role),
+		Profile: &models.Profile{
+			FullName: req.Fullname,
+			Bio:      bio,
+		},
 	}
 
-	err = s.repo.Create(&newUser)
-
-	if err != nil {
+	if err := s.repo.Create(&newUser); err != nil {
 		return nil, err
 	}
 
 	access, refresh, err := generateTokenPair(newUser.ID, newUser.Role, os.Getenv("JWT_SECRET"))
-
+	if err != nil {
+		return nil, err
+	}
 	return toAuthResponse(access, refresh, *toUserShort(newUser)), nil
 }
 
 func (s *Service) Login(req dto.LoginRequest) (*dto.AuthResponse, error) {
-	foundUser, err := s.repo.FindByEmail(req.Email)
-
-	if foundUser == nil {
-		return nil, err
+	user, err := s.repo.FindByEmail(req.Email)
+	if errors.Is(err, domain.ErrUserNotFound) {
+		return nil, domain.ErrInvalidCredentials
 	}
-	err = bcrypt.CompareHashAndPassword([]byte(foundUser.PasswordHash), []byte(req.Password))
 	if err != nil {
 		return nil, err
 	}
 
-	access, refresh, err := generateTokenPair(foundUser.ID, foundUser.Role, os.Getenv("JWT_SECRET"))
+	if bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(req.Password)) != nil {
+		return nil, domain.ErrInvalidCredentials
+	}
 
-	return toAuthResponse(access, refresh, *toUserShort(*foundUser)), nil
+	access, refresh, err := generateTokenPair(user.ID, user.Role, os.Getenv("JWT_SECRET"))
+	if err != nil {
+		return nil, err
+	}
+	return toAuthResponse(access, refresh, *toUserShort(*user)), nil
 }
 
 func (s *Service) Refresh(refreshToken string) (*dto.AuthResponse, error) {
