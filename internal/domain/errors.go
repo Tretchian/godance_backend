@@ -23,6 +23,12 @@ var (
 	ErrNotRequestJudge          = errors.New("not the assigned judge of the request")
 	ErrResponseAlreadyExists    = errors.New("feedback response already submitted")
 	ErrRatingAlreadyExists      = errors.New("feedback already rated")
+
+	ErrVideoNotFound           = errors.New("video not found")
+	ErrNotVideoOwner           = errors.New("not the video owner")
+	ErrRequestNotAwaitingVideo = errors.New("feedback request is not awaiting a video")
+	ErrVideoObjectMissing      = errors.New("uploaded object not found in storage")
+	ErrVideoGone               = errors.New("video has been deleted")
 )
 
 const MaxJudgesPerCompetition = 5

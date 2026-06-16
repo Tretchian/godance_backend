@@ -14,6 +14,11 @@ type FeedbackRepository interface {
 	// Transition атомарно меняет статус запроса под блокировкой строки,
 	// допуская переход только из одного из allowedFrom состояний.
 	Transition(id uint, allowedFrom []string, to string) (*models.FeedbackRequest, error)
+	// AttachVideo привязывает видео к запросу участника-владельца и переводит
+	// его awaiting_video → pending в одной транзакции; comment, если задан,
+	// обновляет комментарий участника.
+	RequestByVideo(videoID uint) (*models.FeedbackRequest, error)
+	AttachVideo(requestID, videoID, participantID uint, comment *string) error
 
 	// CreateResponse сохраняет ОС судьи и переводит запрос pending →
 	// awaiting_confirmation в одной транзакции.

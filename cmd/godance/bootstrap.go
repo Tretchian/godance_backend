@@ -8,22 +8,27 @@ import (
 	judgehandler "godance/internal/handler/judge"
 	paymenthandler "godance/internal/handler/payment"
 	registrationhandler "godance/internal/handler/registration"
+	videohandler "godance/internal/handler/video"
 	competitionrepo "godance/internal/repository/competition"
 	feedbackrepo "godance/internal/repository/feedback"
 	judgerepo "godance/internal/repository/judge"
 	registrationrepo "godance/internal/repository/registration"
 	userrepo "godance/internal/repository/user"
+	videorepo "godance/internal/repository/video"
 	authservice "godance/internal/service/auth"
 	competitionservice "godance/internal/service/competition"
 	feedbackservice "godance/internal/service/feedback"
 	judgeservice "godance/internal/service/judge"
 	registrationservice "godance/internal/service/registration"
+	videoservice "godance/internal/service/video"
+
+	"godance/internal/domain"
 
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
 
-func setupRoutes(r *gin.Engine, db *gorm.DB) {
+func setupRoutes(r *gin.Engine, db *gorm.DB, storage domain.VideoStorage) {
 	api := r.Group("/api/v1")
 
 	repo := competitionrepo.NewRepository(db)
@@ -49,6 +54,11 @@ func setupRoutes(r *gin.Engine, db *gorm.DB) {
 	registrationService := registrationservice.NewService(registrationRepo)
 	registrationHandler := registrationhandler.NewHandler(registrationService)
 	registrationHandler.Register(api)
+
+	videoRepo := videorepo.NewRepository(db)
+	videoService := videoservice.NewService(videoRepo, storage, feedbackRepo)
+	videoHandler := videohandler.NewHandler(videoService)
+	videoHandler.Register(api)
 
 	userRepo := userrepo.NewRepository(db)
 	authService := authservice.NewService(userRepo)

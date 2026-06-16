@@ -92,6 +92,45 @@ func (r *repository) Transition(id uint, allowedFrom []string, to string) (*mode
 	return &request, nil
 }
 
+func (r *repository) RequestByVideo(videoID uint) (*models.FeedbackRequest, error) {
+	var request models.FeedbackRequest
+	if err := r.db.Where("video_id = ?", videoID).First(&request).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrFeedbackRequestNotFound
+		}
+		return nil, err
+	}
+	return &request, nil
+}
+
+func (r *repository) AttachVideo(requestID, videoID, participantID uint, comment *string) error {
+	return r.db.Transaction(func(tx *gorm.DB) error {
+		var request models.FeedbackRequest
+		if err := tx.Clauses(clause.Locking{Strength: "UPDATE"}).
+			First(&request, requestID).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return domain.ErrFeedbackRequestNotFound
+			}
+			return err
+		}
+		if request.ParticipantID != participantID {
+			return domain.ErrNotRequestParticipant
+		}
+		if request.Status != string(types.FeedbackRequestStatusAwaitingVideo) {
+			return domain.ErrRequestNotAwaitingVideo
+		}
+
+		updates := map[string]any{
+			"video_id": videoID,
+			"status":   string(types.FeedbackRequestStatusPending),
+		}
+		if comment != nil {
+			updates["participant_comment"] = *comment
+		}
+		return tx.Model(&request).Updates(updates).Error
+	})
+}
+
 func (r *repository) CreateResponse(resp *models.FeedbackResponse) error {
 	return r.db.Transaction(func(tx *gorm.DB) error {
 		var request models.FeedbackRequest

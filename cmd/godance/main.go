@@ -2,9 +2,12 @@ package main
 
 import (
 	"godance/config"
+	"godance/internal/domain"
 	"godance/internal/models"
+	"godance/internal/storage"
 
 	"log"
+	"os"
 
 	"github.com/gin-gonic/gin"
 )
@@ -31,7 +34,19 @@ func main() {
 		&models.AuditLog{},
 	)
 
-	setupRoutes(r, db)
+	var store domain.VideoStorage
+	if os.Getenv("MINIO_ENDPOINT") == "" {
+		log.Println("MINIO_ENDPOINT not set: using stub video storage")
+		store = storage.NewStub()
+	} else {
+		minioStore, err := storage.NewMinIO()
+		if err != nil {
+			log.Fatal("failed to init MinIO storage:", err)
+		}
+		store = minioStore
+	}
+
+	setupRoutes(r, db, store)
 
 	r.Run(":8080")
 }

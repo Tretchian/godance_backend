@@ -3,6 +3,8 @@ package main
 import (
 	"testing"
 
+	"godance/internal/storage"
+
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 )
@@ -14,5 +16,5 @@ import (
 func TestSetupRoutesNoPanic(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	setupRoutes(r, &gorm.DB{})
+	setupRoutes(r, &gorm.DB{}, storage.NewStub())
 }
