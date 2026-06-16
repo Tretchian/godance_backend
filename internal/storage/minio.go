@@ -3,8 +3,10 @@ package storage
 import (
 	"context"
 	"errors"
+	"fmt"
 	"log"
 	"os"
+	"strings"
 	"time"
 
 	"godance/internal/domain"
@@ -46,11 +48,29 @@ func NewMinIO() (*MinIO, error) {
 		region = "us-east-1"
 	}
 
-	creds := credentials.NewStaticCredentialsProvider(
-		os.Getenv("MINIO_ACCESS_KEY"),
-		os.Getenv("MINIO_SECRET_KEY"),
-		"",
-	)
+	accessKey := os.Getenv("MINIO_ACCESS_KEY")
+	secretKey := os.Getenv("MINIO_SECRET_KEY")
+	bucket := os.Getenv("MINIO_BUCKET")
+
+	// Понятная ошибка вместо невнятного "static credentials are empty" от SDK.
+	var missing []string
+	if accessKey == "" {
+		missing = append(missing, "MINIO_ACCESS_KEY")
+	}
+	if secretKey == "" {
+		missing = append(missing, "MINIO_SECRET_KEY")
+	}
+	if bucket == "" {
+		missing = append(missing, "MINIO_BUCKET")
+	}
+	if len(missing) > 0 {
+		return nil, fmt.Errorf(
+			"minio: MINIO_ENDPOINT is set but required vars are empty: %s (set them in .env, or unset MINIO_ENDPOINT to use stub storage)",
+			strings.Join(missing, ", "),
+		)
+	}
+
+	creds := credentials.NewStaticCredentialsProvider(accessKey, secretKey, "")
 
 	internalClient := s3.New(s3.Options{
 		Region:       region,
@@ -68,7 +88,7 @@ func NewMinIO() (*MinIO, error) {
 	m := &MinIO{
 		client:  internalClient,
 		presign: s3.NewPresignClient(publicClient),
-		bucket:  os.Getenv("MINIO_BUCKET"),
+		bucket:  bucket,
 	}
 	if err := m.ensureBucket(context.Background()); err != nil {
 		return nil, err
