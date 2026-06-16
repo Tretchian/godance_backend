@@ -17,15 +17,17 @@ type FeedbackRating struct {
 
 type FeedbackRequest struct {
 	gorm.Model
-	JudgeID            uint `gorm:"not null;index:idx_feedback_requests_judge_status"`
-	Judge              User `gorm:"foreignKey:JudgeID"`
-	ParticipantID      uint `gorm:"not null"`
-	Participant        User `gorm:"foreignKey:ParticipantID"`
-	VideoID            uint `gorm:"not null"`
-	Video              Video
+	CompetitionID      uint        `gorm:"not null;index"`
+	Competition        Competition `gorm:"foreignKey:CompetitionID"`
+	JudgeID            uint        `gorm:"not null;index:idx_feedback_requests_judge_status"`
+	Judge              User        `gorm:"foreignKey:JudgeID"`
+	ParticipantID      uint        `gorm:"not null"`
+	Participant        User        `gorm:"foreignKey:ParticipantID"`
+	VideoID            *uint       // NULL до загрузки видео (статус awaiting_payment/awaiting_video)
+	Video              *Video
 	Price              *float64   `gorm:"type:numeric(10,2)"`
 	ParticipantComment *string    `gorm:"type:text"`
-	Status             string     `gorm:"type:varchar(20);index:idx_feedback_requests_judge_status"` // pending | completed | refunded
+	Status             string     `gorm:"type:varchar(20);index:idx_feedback_requests_judge_status"` // см. types.FeedbackRequestStatus
 	DeadlineAt         *time.Time `gorm:"type:timestamptz"`                                          // created_at + 30 days
 
 	Response *FeedbackResponse `gorm:"foreignKey:RequestID"`

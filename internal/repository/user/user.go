@@ -1,6 +1,8 @@
 package user
 
 import (
+	"errors"
+
 	"godance/internal/domain"
 	"godance/internal/models"
 
@@ -21,6 +23,22 @@ func (r *repository) Create(c *models.User) error {
 
 func (r *repository) FindByEmail(email string) (*models.User, error) {
 	var user models.User
-	err := r.db.Where("email = ?", email).First(&user).Error
-	return &user, err
+	if err := r.db.Preload("Profile").Where("email = ?", email).First(&user).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
+}
+
+func (r *repository) FindByID(id uint) (*models.User, error) {
+	var user models.User
+	if err := r.db.Preload("Profile").First(&user, id).Error; err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, domain.ErrUserNotFound
+		}
+		return nil, err
+	}
+	return &user, nil
 }

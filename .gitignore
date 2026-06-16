@@ -29,5 +29,4 @@ go.work.sum
 
 # Editor/IDE
 # .idea/
-# .vscode/docker-compose.yml
-docker-compose.yml
+# .vscode/

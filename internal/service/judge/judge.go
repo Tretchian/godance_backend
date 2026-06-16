@@ -37,6 +37,48 @@ func (s *Service) Assign(competitionID, judgeID, callerID uint) (*dto.JudgeItem,
 	return &item, nil
 }
 
+func (s *Service) Unassign(competitionID, judgeID, callerID uint) error {
+	return s.repo.Unassign(competitionID, judgeID, callerID)
+}
+
+func (s *Service) ListCatalog(page, limit int) (*dto.JudgeProfileList, error) {
+	judges, total, err := s.repo.ListJudges(page, limit)
+	if err != nil {
+		return nil, err
+	}
+	items := make([]dto.JudgeProfile, len(judges))
+	for i, j := range judges {
+		items[i] = toJudgeProfile(j)
+	}
+	return &dto.JudgeProfileList{
+		Data: items,
+		Pagination: dto.Pagination{
+			Page:  page,
+			Limit: limit,
+			Total: total,
+		},
+	}, nil
+}
+
+func (s *Service) GetProfile(id uint) (*dto.JudgeProfile, error) {
+	judge, err := s.repo.GetJudge(id)
+	if err != nil {
+		return nil, err
+	}
+	profile := toJudgeProfile(*judge)
+	return &profile, nil
+}
+
+func toJudgeProfile(u models.User) dto.JudgeProfile {
+	profile := dto.JudgeProfile{ID: u.ID}
+	if u.Profile != nil {
+		profile.FullName = u.Profile.FullName
+		profile.Bio = u.Profile.Bio
+		profile.Rating = u.Profile.Rating
+	}
+	return profile
+}
+
 func toJudgeItem(jc models.JudgesCompetition) dto.JudgeItem {
 	return dto.JudgeItem{
 		ID:            jc.ID,

@@ -5,8 +5,8 @@ import (
 	"strconv"
 
 	"godance/internal/dto"
+	"godance/internal/httpx"
 	"godance/internal/middleware"
-	"godance/internal/models"
 	"godance/internal/service/competition"
 	types "godance/internal/type"
 
@@ -25,51 +25,26 @@ func (h *Handler) Register(rg *gin.RouterGroup) {
 	competitions := rg.Group("/competitions")
 	{
 		competitions.GET("/", h.GetList)
+		competitions.GET("/:id", h.GetCompetition)
 		competitions.GET(
 			"/:id/summary",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
-			h.GetCompetition,
+			h.GetSummary,
 		)
 		competitions.POST(
 			"",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
 			h.CreateCompetition,
 		)
 		competitions.PATCH(
 			"/:id",
+			middleware.RequireAuth,
 			middleware.RequireRole(string(types.UserRoleOrganizer)),
 			h.PatchCompetition,
 		)
 	}
-}
-
-func (h *Handler) CreateCompetition(c *gin.Context) {
-	user := c.MustGet("user").(models.User)
-	var req dto.CreateCompetitionRequest
-	c.ShouldBindJSON(&req)
-
-	result, err := h.service.CreateCompetition(user, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, err)
-	}
-	c.JSON(http.StatusOK, result)
-}
-
-func (h *Handler) PatchCompetition(c *gin.Context) {
-	idParam := c.Param("id")
-	id, err := strconv.ParseUint(idParam, 10, 64)
-
-	var req dto.UpdateCompetitionRequest
-	c.ShouldBindJSON(&req)
-
-	result, err := h.service.PatchCompetition(id, req)
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
-	}
-	c.JSON(http.StatusOK, result)
-}
-
-func (h *Handler) GetCompetition(c *gin.Context) {
 }
 
 func (h *Handler) GetList(c *gin.Context) {
@@ -79,9 +54,74 @@ func (h *Handler) GetList(c *gin.Context) {
 
 	result, err := h.service.GetPage(status, page, limit)
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) GetCompetition(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Error{Error: "invalid competition id", Code: "BAD_REQUEST"})
 		return
 	}
 
+	result, err := h.service.GetCompetition(uint(id))
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) GetSummary(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Error{Error: "invalid competition id", Code: "BAD_REQUEST"})
+		return
+	}
+
+	result, err := h.service.Summary(uint(id), middleware.UserID(c))
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusOK, result)
+}
+
+func (h *Handler) CreateCompetition(c *gin.Context) {
+	var req dto.CreateCompetitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.Bind(c, err)
+		return
+	}
+
+	result, err := h.service.CreateCompetition(middleware.UserID(c), req)
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
+	c.JSON(http.StatusCreated, result)
+}
+
+func (h *Handler) PatchCompetition(c *gin.Context) {
+	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
+	if err != nil {
+		c.JSON(http.StatusBadRequest, dto.Error{Error: "invalid competition id", Code: "BAD_REQUEST"})
+		return
+	}
+
+	var req dto.UpdateCompetitionRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		httpx.Bind(c, err)
+		return
+	}
+
+	result, err := h.service.PatchCompetition(uint(id), middleware.UserID(c), req)
+	if err != nil {
+		httpx.Error(c, err)
+		return
+	}
 	c.JSON(http.StatusOK, result)
 }
