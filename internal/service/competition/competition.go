@@ -23,7 +23,7 @@ func (s *Service) CreateCompetition(organizerID uint, req dto.CreateCompetitionR
 	competition := models.Competition{
 		OrganizerID:      organizerID,
 		Title:            req.Title,
-		EventDate:        req.EventDate,
+		EventDate:        req.EventDate.Time,
 		ParticipantLimit: req.ParticipantLimit,
 		EntryFee:         &fee,
 		Status:           string(types.CompetitionStatusDraft),

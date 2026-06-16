@@ -24,7 +24,7 @@ func NewHandler(service *competition.Service) *Handler {
 func (h *Handler) Register(rg *gin.RouterGroup) {
 	competitions := rg.Group("/competitions")
 	{
-		competitions.GET("/", h.GetList)
+		competitions.GET("", h.GetList)
 		competitions.GET("/:id", h.GetCompetition)
 		competitions.GET(
 			"/:id/summary",

@@ -2,14 +2,13 @@ package dto
 
 import (
 	types "godance/internal/type"
-	"time"
 
 	"github.com/shopspring/decimal"
 )
 
 type CreateCompetitionRequest struct {
 	Title            string          `json:"title" binding:"required"`
-	EventDate        time.Time       `json:"event_date" binding:"required"`
+	EventDate        Date            `json:"event_date" binding:"required"`
 	ParticipantLimit *int            `json:"participant_limit" binding:"omitempty,min=1"`
 	EntryFee         decimal.Decimal `json:"entry_fee" binding:"required"`
 }
