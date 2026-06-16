@@ -1,6 +1,10 @@
-# Глобальные настройки ACME (Let's Encrypt).
+# Глобальные настройки ACME.
 {
 	email {$ACME_EMAIL}
+	# Только Let's Encrypt: ZeroSSL (запасной CA у Caddy) отклоняет бесплатные
+	# и динамические домены (*.sslip.io, *.duckdns.org, технические домены
+	# хостингов) — для них подходит именно Let's Encrypt.
+	acme_ca https://acme-v02.api.letsencrypt.org/directory
 }
 
 # API: https://api.<домен> → Gin на app:8080
