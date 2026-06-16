@@ -45,11 +45,17 @@ type FeedbackRequestItem struct {
 	JudgeID       uint     `json:"judge_id"`
 	ParticipantID uint     `json:"participant_id"`
 	VideoID       *uint    `json:"video_id"`
+	ResponseID    *uint    `json:"response_id"` // null, пока отзыв не отправлен
 	Comment       *string  `json:"comment"`
 	Price         *float64 `json:"price"`
 	Status        string   `json:"status"`
 	CreatedAt     string   `json:"created_at"`
 	DeadlineAt    *string  `json:"deadline_at"`
+}
+
+type FeedbackRequestListResponse struct {
+	Data       []FeedbackRequestItem `json:"data"`
+	Pagination Pagination            `json:"pagination"`
 }
 
 type FeedbackResponseItem struct {

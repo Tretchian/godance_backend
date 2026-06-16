@@ -70,19 +70,54 @@ func (s *Service) ConfirmRequest(id, participantID uint) (*dto.FeedbackRequestIt
 		return nil, domain.ErrNotRequestParticipant
 	}
 
-	updated, err := s.repo.Transition(
+	if _, err := s.repo.Transition(
 		id,
 		[]string{string(types.FeedbackRequestStatusAwaitingConfirmation)},
 		string(types.FeedbackRequestStatusCompleted),
-	)
-	if err != nil {
+	); err != nil {
 		return nil, err
 	}
 
 	if err := s.gateway.Capture(id); err != nil {
 		return nil, err
 	}
-	return toRequestItem(updated), nil
+
+	full, err := s.repo.GetRequest(id)
+	if err != nil {
+		return nil, err
+	}
+	return toRequestItem(full), nil
+}
+
+// ListRequests возвращает запросы ОС текущего пользователя. Выборка строго
+// ограничена его ролью (участник — свои; судья — назначенные ему).
+func (s *Service) ListRequests(callerID uint, role, status string, page, limit int) (*dto.FeedbackRequestListResponse, error) {
+	var participantID, judgeID uint
+	switch role {
+	case string(types.UserRoleParticipant):
+		participantID = callerID
+	case string(types.UserRoleJudge):
+		judgeID = callerID
+	default:
+		return &dto.FeedbackRequestListResponse{
+			Data:       []dto.FeedbackRequestItem{},
+			Pagination: dto.Pagination{Page: page, Limit: limit},
+		}, nil
+	}
+
+	requests, total, err := s.repo.ListRequests(participantID, judgeID, status, page, limit)
+	if err != nil {
+		return nil, err
+	}
+
+	items := make([]dto.FeedbackRequestItem, len(requests))
+	for i := range requests {
+		items[i] = *toRequestItem(&requests[i])
+	}
+	return &dto.FeedbackRequestListResponse{
+		Data:       items,
+		Pagination: dto.Pagination{Page: page, Limit: limit, Total: total},
+	}, nil
 }
 
 // CreateResponse — судья-исполнитель отправляет ОС (pending → awaiting_confirmation).
@@ -239,6 +274,9 @@ func toRequestItem(r *models.FeedbackRequest) *dto.FeedbackRequestItem {
 	if r.DeadlineAt != nil {
 		deadline := r.DeadlineAt.Format(time.RFC3339)
 		item.DeadlineAt = &deadline
+	}
+	if r.Response != nil {
+		item.ResponseID = &r.Response.ID
 	}
 	return item
 }

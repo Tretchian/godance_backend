@@ -59,6 +59,16 @@ func UserID(c *gin.Context) uint {
 	return id
 }
 
+// UserRole возвращает роль аутентифицированного пользователя из контекста.
+func UserRole(c *gin.Context) string {
+	v, ok := c.Get("role")
+	if !ok {
+		return ""
+	}
+	role, _ := v.(string)
+	return role
+}
+
 func RequireRole(roles ...string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		role, _ := c.Get("role")

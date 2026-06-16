@@ -61,13 +61,40 @@ func (r *repository) CreateRequest(competitionID, judgeID, participantID uint, c
 
 func (r *repository) GetRequest(id uint) (*models.FeedbackRequest, error) {
 	var request models.FeedbackRequest
-	if err := r.db.First(&request, id).Error; err != nil {
+	if err := r.db.Preload("Response").First(&request, id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, domain.ErrFeedbackRequestNotFound
 		}
 		return nil, err
 	}
 	return &request, nil
+}
+
+func (r *repository) ListRequests(participantID, judgeID uint, status string, page, limit int) ([]models.FeedbackRequest, int64, error) {
+	query := r.db.Model(&models.FeedbackRequest{})
+	if participantID != 0 {
+		query = query.Where("participant_id = ?", participantID)
+	}
+	if judgeID != 0 {
+		query = query.Where("judge_id = ?", judgeID)
+	}
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	var total int64
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	var requests []models.FeedbackRequest
+	err := query.
+		Preload("Response").
+		Order("created_at DESC").
+		Offset((page - 1) * limit).
+		Limit(limit).
+		Find(&requests).Error
+	return requests, total, err
 }
 
 func (r *repository) ListExpired(now time.Time) ([]models.FeedbackRequest, error) {

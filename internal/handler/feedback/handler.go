@@ -25,6 +25,7 @@ func (h *Handler) Register(r *gin.RouterGroup) {
 		middleware.RequireRole(string(types.UserRoleParticipant)),
 		h.CreateRequest,
 	)
+	requests.GET("", middleware.RequireAuth, h.ListRequests)
 	requests.GET("/:id", middleware.RequireAuth, h.GetRequest)
 	requests.PATCH("/:id",
 		middleware.RequireAuth,
