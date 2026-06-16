@@ -537,8 +537,8 @@ paths:
       tags: [videos]
       summary: Подтвердить успешную загрузку файла в хранилище
       description: >
-        Backend проверяет наличие объекта в Yandex Cloud OS (HEAD запрос).
-        После подтверждения video.status → active, expires_at = now + 6 месяцев,
+        Backend проверяет наличие объекта в OS (HEAD запрос).
+        После подтверждения video.status → active, expires_at = now + 1 месяц,
         request.status → pending.
       security:
         - BearerAuth: []
